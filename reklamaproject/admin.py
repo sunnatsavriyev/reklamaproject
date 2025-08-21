@@ -11,9 +11,8 @@ class MetroLineAdmin(admin.ModelAdmin):
 
 @admin.register(Station)
 class StationAdmin(admin.ModelAdmin):
-    list_display = ['id', 'name', 'line','schema_image_display','x','y']
+    list_display = ['id', 'name', 'line','schema_image_display']
     list_filter = ['line']
-    list_editable = ('x', 'y')
     search_fields = ['name',]
     verbose_name = _("Bekat")
     verbose_name_plural = _("Bekatlar")
@@ -26,8 +25,9 @@ class StationAdmin(admin.ModelAdmin):
 
 @admin.register(Position)
 class PositionAdmin(admin.ModelAdmin):
-    list_display = ['id', 'station', 'number']
+    list_display = ['id', 'station', 'number', 'x', 'y']
     list_filter = ['station']
+    list_editable = ('x', 'y')
     search_fields = ['station__name',]
     verbose_name = _("Joylashuv")
     verbose_name_plural = _("Joylashuvlar")

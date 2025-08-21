@@ -86,7 +86,7 @@ class PositionSerializer(serializers.ModelSerializer):
     advertisement = AdvertisementSerializer(read_only=True)
     class Meta:
         model = Position
-        fields = ['id', 'station', 'number','advertisement']
+        fields = ['id', 'station', 'number','advertisement', 'x', 'y']
 
 
 
