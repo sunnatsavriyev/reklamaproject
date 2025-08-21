@@ -1,6 +1,8 @@
 from pathlib import Path
 import environ
 from datetime import timedelta
+import dj_database_url
+import os
 
 # --- Base directory ---
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -96,22 +98,13 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'home.wsgi.application'
 
-# --- Database ---
-if env("DATABASE_URL", default=None):
-    DATABASES = {
-        "default": env.db("DATABASE_URL")
-    }
-else:
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.postgresql",
-            "NAME": env("DB_NAME"),
-            "USER": env("DB_USER"),
-            "PASSWORD": env("DB_PASSWORD"),
-            "HOST": env("DB_HOST"),
-            "PORT": env("DB_PORT"),
-        }
-    }
+DATABASES = {
+    'default': dj_database_url.config(
+        default=os.environ.get("DATABASE_URL")
+    )
+}
+
+
 
 # --- Auth ---
 AUTHENTICATION_BACKENDS = (
