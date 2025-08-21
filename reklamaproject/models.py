@@ -93,3 +93,4 @@ class AdvertisementArchive(models.Model):
 
     def __str__(self):
         return f"{self.Reklama_nomi} ({self.position})"
+    
