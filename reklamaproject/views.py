@@ -44,6 +44,7 @@ class PositionViewSet(viewsets.ModelViewSet):
     permission_classes = [AuthenticatedCRUDPermission]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['station']
+    search_fields = ['number']
 
 class AdvertisementViewSet(viewsets.ModelViewSet):
     queryset = Advertisement.objects.all()
