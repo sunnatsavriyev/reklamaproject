@@ -66,18 +66,22 @@ MIDDLEWARE = [
 ]
 
 # --- CORS / CSRF ---
-CORS_ALLOW_ALL_ORIGINS = env.bool("CORS_ALLOW_ALL_ORIGINS", default=False)
+# CORS_ALLOW_ALL_ORIGINS = env.bool("CORS_ALLOW_ALL_ORIGINS", default=False)
 CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=[
     "http://localhost:5173",
     "http://127.0.0.1:5173",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "https://marketing-five-rose.vercel.app",
+    "https://2abfcea964d1.ngrok-free.app",
 ])
 CORS_ALLOW_CREDENTIALS = True
 
 CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[
-    "http://localhost:8000",
-    "http://127.0.0.1:8000",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "https://marketing-five-rose.vercel.app",
+    "https://2abfcea964d1.ngrok-free.app",
 ])
 
 # --- URL ---
@@ -100,23 +104,23 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'home.wsgi.application'
 
-DATABASES = {
-    'default': dj_database_url.config(
-        default=os.environ.get("DATABASE_URL")
-    )
-}
-
-
 # DATABASES = {
-#     "default": {
-#         "ENGINE": "django.db.backends.postgresql",
-#         "NAME": "reklamaproject",
-#         "USER": "postgres",
-#         "PASSWORD": "sunnat1123",
-#         "HOST": "localhost",
-#         "PORT": "5433",
-#     }
+#     'default': dj_database_url.config(
+#         default=os.environ.get("DATABASE_URL")
+#     )
 # }
+
+
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": "reklamaproject",
+        "USER": "postgres",
+        "PASSWORD": "sunnat1123",
+        "HOST": "localhost",
+        "PORT": "5433",
+    }
+}
 
 
 
@@ -138,7 +142,9 @@ REST_FRAMEWORK = {
         'rest_framework.renderers.JSONRenderer',
         'rest_framework.renderers.BrowsableAPIRenderer',
     ),
-}
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 10, 
+} 
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(days=1),

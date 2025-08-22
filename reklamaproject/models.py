@@ -24,7 +24,7 @@ class Station(models.Model):
 
 
 class Position(models.Model):
-    station = models.ForeignKey(Station, on_delete=models.SET_NULL, related_name='positions')
+    station = models.ForeignKey(Station, on_delete=models.SET_NULL,null=True, related_name='positions')
     number = models.PositiveIntegerField(help_text="Joy raqami, masalan: 1, 2, 3")
     x = models.FloatField(help_text='Horizontal position (0-100%)', null=True, blank=True)
     y = models.FloatField(help_text='Vertical position (0-100%)', null=True, blank=True)
