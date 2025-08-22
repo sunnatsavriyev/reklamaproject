@@ -107,6 +107,18 @@ DATABASES = {
 }
 
 
+# DATABASES = {
+#     "default": {
+#         "ENGINE": "django.db.backends.postgresql",
+#         "NAME": "reklamaproject",
+#         "USER": "postgres",
+#         "PASSWORD": "sunnat1123",
+#         "HOST": "localhost",
+#         "PORT": "5433",
+#     }
+# }
+
+
 
 # --- Auth ---
 AUTHENTICATION_BACKENDS = (

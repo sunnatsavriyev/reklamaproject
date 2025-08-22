@@ -40,7 +40,7 @@ class Position(models.Model):
         
 class Advertisement(models.Model):
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='ads')
-    position = models.OneToOneField(Position, on_delete=models.CASCADE, related_name='advertisement', null=True, blank=True)
+    position = models.OneToOneField(Position, on_delete=models.SET_NULL, related_name='advertisement', null=True, blank=True)
     Reklama_nomi = models.CharField(max_length=255, default='Reklama nomi',)
     Qurilma_turi = models.CharField(max_length=100, default='led',)
     Ijarachi = models.CharField(max_length=255, null=True, blank=True)
