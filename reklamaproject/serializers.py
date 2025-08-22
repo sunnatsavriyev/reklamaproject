@@ -83,18 +83,23 @@ class CreateAdvertisementSerializer(AdvertisementSerializer):
 
 
 class PositionSerializer(serializers.ModelSerializer):
-    station = serializers.CharField(source="station.name", read_only=True)
+    station = serializers.CharField(source="station.name", read_only=True)  # faqat nom
+    station_id = serializers.PrimaryKeyRelatedField(
+        queryset=Station.objects.all(),
+        source="station",
+        write_only=True
+    )
     advertisement = AdvertisementSerializer(read_only=True)
     status = serializers.SerializerMethodField()
 
     class Meta:
         model = Position
-        fields = ['id', 'station', 'number', 'advertisement', 'x', 'y', 'status']
+        fields = ['id', 'station', 'station_id', 'number', 'advertisement', 'x', 'y', 'status']
 
     def get_status(self, obj):
         # advertisement mavjud bo‘lmasa ham xato chiqmasin
         return getattr(obj, "advertisement", None) is not None
-
+    
 
 class AdvertisementArchiveSerializer(serializers.ModelSerializer):
     user = serializers.CharField(source='user.username', read_only=True)
