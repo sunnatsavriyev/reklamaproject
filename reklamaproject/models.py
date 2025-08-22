@@ -12,11 +12,11 @@ class MetroLine(models.Model):
     def __str__(self):
         return str(self.name or "No name")
 
-
+ 
 
 class Station(models.Model):
     name = models.CharField(max_length=100,null=True,blank=True)
-    line = models.ForeignKey(MetroLine, on_delete=models.CASCADE, related_name='stations', null=True, blank=True)
+    line = models.ForeignKey(MetroLine, on_delete=models.SET_NULL, related_name='stations', null=True, blank=True)
     schema_image = models.ImageField(upload_to='station_schemas/', null=True, blank=True, help_text="Bekat sxemasi rasmi")
     def __str__(self):
         return f"{self.name} ({self.line.name})" if self.line and self.line.name else self.name or "No name"
@@ -24,7 +24,7 @@ class Station(models.Model):
 
 
 class Position(models.Model):
-    station = models.ForeignKey(Station, on_delete=models.CASCADE, related_name='positions')
+    station = models.ForeignKey(Station, on_delete=models.SET_NULL, related_name='positions')
     number = models.PositiveIntegerField(help_text="Joy raqami, masalan: 1, 2, 3")
     x = models.FloatField(help_text='Horizontal position (0-100%)', null=True, blank=True)
     y = models.FloatField(help_text='Vertical position (0-100%)', null=True, blank=True)
