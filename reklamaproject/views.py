@@ -42,7 +42,7 @@ class PositionViewSet(viewsets.ModelViewSet):
     queryset = Position.objects.select_related('station').prefetch_related('advertisement').all()
     serializer_class = PositionSerializer
     permission_classes = [AuthenticatedCRUDPermission]
-    filter_backends = [DjangoFilterBackend]
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter, DjangoFilterBackend]
     filterset_fields = ['station']
     search_fields = ['number']
 
