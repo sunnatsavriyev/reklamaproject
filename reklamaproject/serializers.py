@@ -83,7 +83,7 @@ class CreateAdvertisementSerializer(AdvertisementSerializer):
 
 
 class PositionSerializer(serializers.ModelSerializer):
-    station = serializers.CharField(source="station.name", read_only=True)  # faqat nom
+    station = serializers.CharField(source="station.name", read_only=True)
     station_id = serializers.PrimaryKeyRelatedField(
         queryset=Station.objects.all(),
         source="station",
@@ -94,12 +94,24 @@ class PositionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Position
-        fields = ['id', 'station', 'station_id', 'number', 'advertisement',  'status']
+        fields = ['id', 'station', 'station_id', 'number', 'advertisement', 'status']
 
     def get_status(self, obj):
-        # advertisement mavjud bo‘lmasa ham xato chiqmasin
         return getattr(obj, "advertisement", None) is not None
-    
+
+    def update(self, instance, validated_data):
+        validated_data.pop("station", None)
+        return super().update(instance, validated_data)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Agar update bo'lsa -> station_id ni olib tashlaymiz
+        request = self.context.get("request")
+        if request and request.method in ("PUT", "PATCH"):
+            self.fields.pop("station_id", None)
+
+
+
 
 class AdvertisementArchiveSerializer(serializers.ModelSerializer):
     user = serializers.CharField(source='user.username', read_only=True)
