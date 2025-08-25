@@ -25,9 +25,8 @@ class StationAdmin(admin.ModelAdmin):
 
 @admin.register(Position)
 class PositionAdmin(admin.ModelAdmin):
-    list_display = ['id', 'station', 'number', 'x', 'y']
+    list_display = ['id', 'station', 'number',]
     list_filter = ['station']
-    list_editable = ('x', 'y')
     search_fields = ['station__name',]
     verbose_name = _("Joylashuv")
     verbose_name_plural = _("Joylashuvlar")

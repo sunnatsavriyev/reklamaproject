@@ -94,7 +94,7 @@ class PositionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Position
-        fields = ['id', 'station', 'station_id', 'number', 'advertisement', 'x', 'y', 'status']
+        fields = ['id', 'station', 'station_id', 'number', 'advertisement',  'status']
 
     def get_status(self, obj):
         # advertisement mavjud bo‘lmasa ham xato chiqmasin

@@ -4,7 +4,7 @@ from .serializers import (
     MetroLineSerializer, StationSerializer,
     PositionSerializer, AdvertisementSerializer, AdvertisementArchiveSerializer, CreateAdvertisementSerializer, ExportAdvertisementSerializer
 )
-
+from .pagination import CustomPagination
 from rest_framework import status
 from django.db import transaction
 from rest_framework.decorators import api_view, permission_classes, action
@@ -30,6 +30,7 @@ class MetroLineViewSet(viewsets.ModelViewSet):
     queryset = MetroLine.objects.all()
     serializer_class = MetroLineSerializer
     permission_classes = [AuthenticatedCRUDPermission]
+    pagination_class = CustomPagination
 
 class StationViewSet(viewsets.ModelViewSet):
     queryset = Station.objects.all()
@@ -37,14 +38,16 @@ class StationViewSet(viewsets.ModelViewSet):
     permission_classes = [AuthenticatedCRUDPermission]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['line']
+    pagination_class = CustomPagination
 
 class PositionViewSet(viewsets.ModelViewSet):
     queryset = Position.objects.select_related('station').prefetch_related('advertisement').all()
     serializer_class = PositionSerializer
     permission_classes = [AuthenticatedCRUDPermission]
-    filter_backends = [DjangoFilterBackend, filters.OrderingFilter, DjangoFilterBackend]
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter, DjangoFilterBackend,filters.SearchFilter]
     filterset_fields = ['station']
     search_fields = ['number']
+    pagination_class = CustomPagination
 
 class AdvertisementViewSet(viewsets.ModelViewSet):
     queryset = Advertisement.objects.all()
@@ -54,6 +57,7 @@ class AdvertisementViewSet(viewsets.ModelViewSet):
     search_fields = ['Reklama_nomi', 'Shartnoma_raqami']
     ordering_fields = ['created_at', 'Qurilma_narxi']
     filterset_fields = ['position__station', 'position__station__line']
+    pagination_class = CustomPagination
 
     def get_serializer_class(self):
         if self.action in ['create', 'update', 'partial_update']:
@@ -188,4 +192,5 @@ class AdvertisementArchiveViewSet(viewsets.ReadOnlyModelViewSet):
     search_fields = ['Reklama_nomi',]
     ordering_fields = ['created_at', 'Qurilma_narxi']
     filterset_fields = ['line','station', 'position']
+    pagination_class = CustomPagination
 
