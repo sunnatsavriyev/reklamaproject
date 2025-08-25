@@ -11,6 +11,11 @@ from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
+import openpyxl
+from openpyxl.utils import get_column_letter
+from django.http import HttpResponse
+
+
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -183,6 +188,54 @@ class AdvertisementViewSet(viewsets.ModelViewSet):
             source_ad.delete()
 
         return Response({'detail': 'Reklama muvaffaqiyatli ko‘chirildi, arxivlandi va source joy tozalandi.'}, status=200)
+    @action(detail=False, methods=['get'], url_path='export-excel')
+    def export_excel(self, request):
+        queryset = self.filter_queryset(self.get_queryset())
+
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Advertisements"
+
+        headers = [
+            "ID", "Reklama nomi", "Qurilma turi", "Ijarachi",
+            "Shartnoma raqami", "Shartnoma boshlanishi", "Shartnoma tugashi",
+            "O'lchov birligi", "Qurilma narxi", "Egallagan maydon", "Shartnoma summasi",
+            "Position", "Station", "Line", "Contact number", "Created at"
+        ]
+        ws.append(headers)
+
+        for ad in queryset:
+            row = [
+                ad.id,
+                ad.Reklama_nomi,
+                ad.Qurilma_turi,
+                ad.Ijarachi,
+                ad.Shartnoma_raqami,
+                ad.Shartnoma_muddati_boshlanishi.strftime("%Y-%m-%d") if ad.Shartnoma_muddati_boshlanishi else "",
+                ad.Shartnoma_tugashi.strftime("%Y-%m-%d") if ad.Shartnoma_tugashi else "",
+                ad.O_lchov_birligi,
+                float(ad.Qurilma_narxi) if ad.Qurilma_narxi else 0,
+                ad.Egallagan_maydon,
+                float(ad.Shartnoma_summasi) if ad.Shartnoma_summasi else 0,
+                ad.position.number if ad.position else "",
+                ad.position.station.name if ad.position and ad.position.station else "",
+                ad.position.station.line.name if ad.position and ad.position.station and ad.position.station.line else "",
+                ad.contact_number,
+                ad.created_at.strftime("%Y-%m-%d %H:%M:%S") if ad.created_at else "",
+            ]
+            ws.append(row)
+
+        # Column width optimize
+        for i, column in enumerate(ws.columns, start=1):
+            max_length = max((len(str(cell.value)) for cell in column if cell.value), default=0)
+            ws.column_dimensions[get_column_letter(i)].width = max_length + 2
+
+        response = HttpResponse(
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        )
+        response['Content-Disposition'] = 'attachment; filename=advertisements.xlsx'
+        wb.save(response)
+        return response
 
 class AdvertisementArchiveViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = AdvertisementArchive.objects.all().order_by('-created_at')
@@ -194,3 +247,51 @@ class AdvertisementArchiveViewSet(viewsets.ReadOnlyModelViewSet):
     filterset_fields = ['line','station', 'position']
     pagination_class = CustomPagination
 
+    @action(detail=False, methods=['get'], url_path='export-excel')
+    def export_excel(self, request):
+        queryset = self.filter_queryset(self.get_queryset())
+
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Advertisement Archives"
+
+        headers = [
+            "ID", "Original Ad ID", "Reklama nomi", "Qurilma turi", "Ijarachi",
+            "Shartnoma raqami", "Shartnoma boshlanishi", "Shartnoma tugashi",
+            "O'lchov birligi", "Qurilma narxi", "Egallagan maydon", "Shartnoma summasi",
+            "Position", "Station", "Line", "User", "Created at"
+        ]
+        ws.append(headers)
+
+        for ad in queryset:
+            row = [
+                ad.id,
+                ad.original_ad.id if ad.original_ad else "",
+                ad.Reklama_nomi,
+                ad.Qurilma_turi,
+                ad.Ijarachi,
+                ad.Shartnoma_raqami,
+                ad.Shartnoma_muddati_boshlanishi.strftime("%Y-%m-%d") if ad.Shartnoma_muddati_boshlanishi else "",
+                ad.Shartnoma_tugashi.strftime("%Y-%m-%d") if ad.Shartnoma_tugashi else "",
+                ad.O_lchov_birligi,
+                float(ad.Qurilma_narxi) if ad.Qurilma_narxi else 0,
+                ad.Egallagan_maydon,
+                float(ad.Shartnoma_summasi) if ad.Shartnoma_summasi else 0,
+                ad.position.number if ad.position else "",
+                ad.station.name if ad.station else "",
+                ad.line.name if ad.line else "",
+                ad.user.username if ad.user else "",
+                ad.created_at.strftime("%Y-%m-%d %H:%M:%S") if ad.created_at else "",
+            ]
+            ws.append(row)
+
+        for i, column in enumerate(ws.columns, start=1):
+            max_length = max((len(str(cell.value)) for cell in column if cell.value), default=0)
+            ws.column_dimensions[get_column_letter(i)].width = max_length + 2
+
+        response = HttpResponse(
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        )
+        response['Content-Disposition'] = 'attachment; filename=advertisement_archives.xlsx'
+        wb.save(response)
+        return response
