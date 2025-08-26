@@ -62,7 +62,7 @@ class AdvertisementViewSet(viewsets.ModelViewSet):
     search_fields = ['Reklama_nomi', 'Shartnoma_raqami']
     ordering_fields = ['created_at', 'Qurilma_narxi']
     filterset_fields = ['position__station', 'position__station__line']
-    pagination_class = CustomPagination
+    # pagination_class = CustomPagination
 
     def get_serializer_class(self):
         if self.action in ['create', 'update', 'partial_update']:

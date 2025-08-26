@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth import get_user_model
 from .validators import validate_file_extension
 import logging
+from django.core.validators import FileExtensionValidator
 logger = logging.getLogger(__name__)
 
 User = get_user_model()
@@ -17,7 +18,13 @@ class MetroLine(models.Model):
 class Station(models.Model):
     name = models.CharField(max_length=100,null=True,blank=True)
     line = models.ForeignKey(MetroLine, on_delete=models.SET_NULL, related_name='stations', null=True, blank=True)
-    schema_image = models.ImageField(upload_to='station_schemas/', null=True, blank=True, help_text="Bekat sxemasi rasmi")
+    schema_image = models.FileField(
+        upload_to='station_schemas/',
+        validators=[FileExtensionValidator(allowed_extensions=['jpg', 'jpeg', 'png', 'pdf'])],
+        null=True,
+        blank=True,
+        help_text="Bekat sxemasi (rasm yoki PDF)"
+    )
     def __str__(self):
         return f"{self.name} ({self.line.name})" if self.line and self.line.name else self.name or "No name"
 

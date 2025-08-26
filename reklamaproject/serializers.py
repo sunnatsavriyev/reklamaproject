@@ -67,6 +67,11 @@ class CreateAdvertisementSerializer(AdvertisementSerializer):
             self.fields['position'].queryset = Position.objects.filter(advertisement__isnull=True)
 
     def validate(self, attrs):
+        if 'position' not in attrs or attrs['position'] is None:
+            raise serializers.ValidationError({
+                'position': "Joy tanlanishi shart."
+            })
+
         if not self.instance:
             shartnoma_raqami = attrs.get('Shartnoma_raqami')
             if shartnoma_raqami and Advertisement.objects.filter(Shartnoma_raqami=shartnoma_raqami).exists():
