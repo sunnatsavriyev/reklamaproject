@@ -29,7 +29,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     # Project apps
-    'reklamaproject',
+    'reklamaproject.apps.ReklamaprojectConfig',
 
     # DRF
     'rest_framework',

@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from .models import Advertisement, Station, MetroLine, Position, AdvertisementArchive
 from rest_framework.fields import CurrentUserDefault
-
+from datetime import date, timedelta
 
 
 class MetroLineSerializer(serializers.ModelSerializer):
@@ -17,9 +17,6 @@ class StationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Station
         fields = ['id', 'name','line', 'line_name', 'schema_image']
-
-    
-
 
 
 
@@ -45,12 +42,25 @@ class AdvertisementSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['user']
 
+    def get_station(self, obj):
+        if obj.position and obj.position.station:
+            return obj.position.station.name
+        return None
+    
+    def get_status(self, obj):
+        today = date.today()
+        if obj.Shartnoma_tugashi and obj.Shartnoma_tugashi < today:
+            return "tugagan"
+        elif obj.Shartnoma_tugashi and obj.Shartnoma_tugashi <= today + timedelta(days=7):
+            return "7_kunda_tugaydigan"
+        return ""
+
 
 
 
 # Reklama YARATISH uchun — faqat advertisement bo'sh joylar
 class CreateAdvertisementSerializer(AdvertisementSerializer):
-    position = serializers.PrimaryKeyRelatedField(queryset=Position.objects.none(), required=False)
+    position = serializers.PrimaryKeyRelatedField(queryset=Position.objects.none(), required=True,allow_null=False)
     user = serializers.HiddenField(default=serializers.CurrentUserDefault())
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -125,6 +135,12 @@ class AdvertisementArchiveSerializer(serializers.ModelSerializer):
     class Meta:
         model = AdvertisementArchive
         fields = '__all__'
+
+    def get_station_name(self, obj):
+        try:
+            return obj.position.station.name
+        except AttributeError:
+            return None
 
 
 class ExportAdvertisementSerializer(serializers.Serializer):

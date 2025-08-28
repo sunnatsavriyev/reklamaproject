@@ -1,4 +1,5 @@
 from rest_framework import viewsets, permissions, filters
+from rest_framework.views import APIView
 from .models import MetroLine, Station, Position, Advertisement, AdvertisementArchive
 from .serializers import (
     MetroLineSerializer, StationSerializer,
@@ -14,8 +15,8 @@ from django_filters.rest_framework import DjangoFilterBackend
 import openpyxl
 from openpyxl.utils import get_column_letter
 from django.http import HttpResponse
-
-
+from datetime import date, timedelta
+from django.db.models import Q
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -45,6 +46,25 @@ class StationViewSet(viewsets.ModelViewSet):
     filterset_fields = ['line']
     pagination_class = CustomPagination
 
+
+class Stationimage(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def put(self, request, pk):
+        try:
+            station = Station.objects.get(pk=pk)
+        except Station.DoesNotExist:
+            return Response({"error": "Bunday bekat topilmadi"}, status=404)
+
+        image = request.FILES.get("schema_image")
+        if not image:
+            return Response({"error": "Rasm yuborilmadi"}, status=400)
+
+        station.schema_image = image
+        station.save()
+        return Response({"message": "Rasm yangilandi", "id": station.id})
+    
+
 class PositionViewSet(viewsets.ModelViewSet):
     queryset = Position.objects.select_related('station').prefetch_related('advertisement').all()
     serializer_class = PositionSerializer
@@ -53,6 +73,42 @@ class PositionViewSet(viewsets.ModelViewSet):
     filterset_fields = ['station']
     search_fields = ['number']
     pagination_class = CustomPagination
+
+    def perform_destroy(self, instance):
+        """
+        Position o‘chirilsa -> unga biriktirilgan Advertisement bo‘lsa,
+        avval arxivga ko‘chadi keyin o‘chadi, so‘ng Position o‘chiriladi.
+        """
+        ad = getattr(instance, 'advertisement', None)
+        if ad:
+            station = instance.station
+            line = station.line if station else None
+
+            AdvertisementArchive.objects.create(
+                original_ad=ad,
+                user=self.request.user,
+                position=instance,
+                line=line,
+                station=station,
+                Reklama_nomi=ad.Reklama_nomi,
+                Qurilma_turi=ad.Qurilma_turi,
+                Ijarachi=ad.Ijarachi,
+                Shartnoma_raqami=ad.Shartnoma_raqami,
+                Shartnoma_muddati_boshlanishi=ad.Shartnoma_muddati_boshlanishi,
+                Shartnoma_tugashi=ad.Shartnoma_tugashi,
+                O_lchov_birligi=ad.O_lchov_birligi,
+                Qurilma_narxi=ad.Qurilma_narxi,
+                Egallagan_maydon=ad.Egallagan_maydon,
+                Shartnoma_summasi=ad.Shartnoma_summasi,
+                Shartnoma_fayl=ad.Shartnoma_fayl,
+                photo=ad.photo,
+                contact_number=ad.contact_number,
+            )
+            # Reklamani o‘chiramiz
+            ad.delete()
+
+        # Endi Positionni o‘chiramiz
+        instance.delete()
 
 class AdvertisementViewSet(viewsets.ModelViewSet):
     queryset = Advertisement.objects.all()
@@ -98,6 +154,33 @@ class AdvertisementViewSet(viewsets.ModelViewSet):
             contact_number=old_instance.contact_number,
         )
         serializer.save(user=self.request.user)
+
+    def perform_destroy(self, instance):
+        """Delete tugmasi bosilganda reklama arxivga ko‘chadi va keyin o‘chadi"""
+        station = instance.position.station if instance.position else None
+        line = station.line if station else None
+
+        AdvertisementArchive.objects.create(
+            original_ad=instance,
+            user=self.request.user,
+            position=instance.position,
+            line=line,
+            station=station,
+            Reklama_nomi=instance.Reklama_nomi,
+            Qurilma_turi=instance.Qurilma_turi,
+            Ijarachi=instance.Ijarachi,
+            Shartnoma_raqami=instance.Shartnoma_raqami,
+            Shartnoma_muddati_boshlanishi=instance.Shartnoma_muddati_boshlanishi,
+            Shartnoma_tugashi=instance.Shartnoma_tugashi,
+            O_lchov_birligi=instance.O_lchov_birligi,
+            Qurilma_narxi=instance.Qurilma_narxi,
+            Egallagan_maydon=instance.Egallagan_maydon,
+            Shartnoma_summasi=instance.Shartnoma_summasi,
+            Shartnoma_fayl=instance.Shartnoma_fayl,
+            photo=instance.photo,
+            contact_number=instance.contact_number,
+        )
+        instance.delete()
 
     @action(detail=True, methods=['get', 'post'], url_path='export')
     def export_advertisement(self, request, pk=None):
@@ -293,5 +376,118 @@ class AdvertisementArchiveViewSet(viewsets.ReadOnlyModelViewSet):
             content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         )
         response['Content-Disposition'] = 'attachment; filename=advertisement_archives.xlsx'
+        wb.save(response)
+        return response
+    
+
+class ExpiredAdvertisementViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Advertisement.objects.all()
+    serializer_class = AdvertisementSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
+    search_fields = ['Reklama_nomi']
+    ordering_fields = ['Shartnoma_tugashi', 'Shartnoma_muddati_boshlanishi']
+    pagination_class = CustomPagination
+
+    def list(self, request, *args, **kwargs):
+        today = date.today()
+        seven_days_later = today + timedelta(days=7)
+
+        # Asl querysetni search va filter bilan ishlatish
+        queryset = self.filter_queryset(self.get_queryset())
+
+        expired = queryset.filter(Shartnoma_tugashi__lt=today)
+        expiring_soon = queryset.filter(
+            Shartnoma_tugashi__range=(today, seven_days_later)
+        )
+
+        expired_data = self.get_serializer(expired, many=True).data
+        expiring_soon_data = self.get_serializer(expiring_soon, many=True).data
+
+        return Response({
+            "counts": {
+                "tugagan": expired.count(),
+                "haftada_tugaydigan": expiring_soon.count(),
+                "umumiy": queryset.count()
+            },
+            "results": {
+                "tugagan": expired_data,
+                "haftada_tugaydigan": expiring_soon_data
+            }
+        })
+
+    @action(detail=False, methods=['get'], url_path='export-excel')
+    def export_excel(self, request):
+        today = date.today()
+        seven_days_later = today + timedelta(days=7)
+
+        expired = Advertisement.objects.filter(Shartnoma_tugashi__lt=today)
+        expiring_soon = Advertisement.objects.filter(
+            Shartnoma_tugashi__range=(today, seven_days_later)
+        )
+
+        wb = openpyxl.Workbook()
+
+        # --- Tugagan sheet ---
+        ws1 = wb.active
+        ws1.title = "Tugagan"
+        headers = [
+            "ID", "Reklama nomi", "Qurilma turi", "Ijarachi",
+            "Shartnoma raqami", "Shartnoma boshlanishi", "Shartnoma tugashi",
+            "Position", "Station", "Status"
+        ]
+        ws1.append(headers)
+
+        for ad in expired:
+            row = [
+                ad.id,
+                ad.Reklama_nomi,
+                ad.Qurilma_turi,
+                ad.Ijarachi,
+                ad.Shartnoma_raqami,
+                ad.Shartnoma_muddati_boshlanishi.strftime("%Y-%m-%d") if ad.Shartnoma_muddati_boshlanishi else "",
+                ad.Shartnoma_tugashi.strftime("%Y-%m-%d") if ad.Shartnoma_tugashi else "",
+                ad.position.number if ad.position else "",
+                ad.position.station.name if ad.position and ad.position.station else "",
+                "tugagan"
+            ]
+            ws1.append(row)
+
+        # Oxirida count yozamiz
+        ws1.append([])
+        ws1.append(["Umumiy tugagan soni:", expired.count()])
+
+        # --- 7 kunda tugaydigan sheet ---
+        ws2 = wb.create_sheet(title="Haftada_tugaydigan")
+        ws2.append(headers)
+
+        for ad in expiring_soon:
+            row = [
+                ad.id,
+                ad.Reklama_nomi,
+                ad.Qurilma_turi,
+                ad.Ijarachi,
+                ad.Shartnoma_raqami,
+                ad.Shartnoma_muddati_boshlanishi.strftime("%Y-%m-%d") if ad.Shartnoma_muddati_boshlanishi else "",
+                ad.Shartnoma_tugashi.strftime("%Y-%m-%d") if ad.Shartnoma_tugashi else "",
+                ad.position.number if ad.position else "",
+                ad.position.station.name if ad.position and ad.position.station else "",
+                "haftada_tugaydigan"
+            ]
+            ws2.append(row)
+
+        ws2.append([])
+        ws2.append(["Umumiy haftada tugaydigan soni:", expiring_soon.count()])
+
+        # --- 3-chi sheet: statistikalar ---
+        ws3 = wb.create_sheet(title="Statistika")
+        ws3.append(["Tugagan", expired.count()])
+        ws3.append(["Haftada tugaydigan", expiring_soon.count()])
+        ws3.append(["Umumiy", Advertisement.objects.count()])
+
+        response = HttpResponse(
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        response["Content-Disposition"] = "attachment; filename=expired_advertisements.xlsx"
         wb.save(response)
         return response
