@@ -17,6 +17,23 @@ from openpyxl.utils import get_column_letter
 from django.http import HttpResponse
 from datetime import date, timedelta
 from django.db.models import Q
+from openpyxl import Workbook
+from rest_framework.renderers import BaseRenderer
+from drf_spectacular.utils import extend_schema, OpenApiParameter
+from rest_framework.filters import SearchFilter
+from django.utils import timezone
+
+
+
+class XLSXRenderer(BaseRenderer):
+    media_type = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    format = 'xlsx'
+    charset = None
+
+    def render(self, data, media_type=None, renderer_context=None):
+        return data
+
+
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
@@ -44,7 +61,7 @@ class StationViewSet(viewsets.ModelViewSet):
     permission_classes = [AuthenticatedCRUDPermission]
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ['line']
-    pagination_class = CustomPagination
+    # pagination_class = CustomPagination
 
 
 class Stationimage(APIView):
@@ -69,10 +86,16 @@ class PositionViewSet(viewsets.ModelViewSet):
     queryset = Position.objects.select_related('station').prefetch_related('advertisement').all()
     serializer_class = PositionSerializer
     permission_classes = [AuthenticatedCRUDPermission]
-    filter_backends = [DjangoFilterBackend, filters.OrderingFilter, DjangoFilterBackend,filters.SearchFilter]
+    filter_backends = [DjangoFilterBackend, filters.OrderingFilter, filters.SearchFilter]
     filterset_fields = ['station']
     search_fields = ['number']
     pagination_class = CustomPagination
+
+    def perform_create(self, serializer):
+        serializer.save(
+            created_by=self.request.user,
+            created_at=timezone.now()
+        )
 
     def perform_destroy(self, instance):
         """
@@ -104,10 +127,8 @@ class PositionViewSet(viewsets.ModelViewSet):
                 photo=ad.photo,
                 contact_number=ad.contact_number,
             )
-            # Reklamani o‘chiramiz
             ad.delete()
 
-        # Endi Positionni o‘chiramiz
         instance.delete()
 
 class AdvertisementViewSet(viewsets.ModelViewSet):
@@ -280,16 +301,15 @@ class AdvertisementViewSet(viewsets.ModelViewSet):
         ws.title = "Advertisements"
 
         headers = [
-            "ID", "Reklama nomi", "Qurilma turi", "Ijarachi",
+             "Reklama nomi", "Qurilma turi", "Ijarachi",
             "Shartnoma raqami", "Shartnoma boshlanishi", "Shartnoma tugashi",
             "O'lchov birligi", "Qurilma narxi", "Egallagan maydon", "Shartnoma summasi",
-            "Position", "Station", "Line", "Contact number", "Created at"
+            "Position", "Station", "Line", "Contact number", "Created at", "Created by"
         ]
         ws.append(headers)
 
         for ad in queryset:
             row = [
-                ad.id,
                 ad.Reklama_nomi,
                 ad.Qurilma_turi,
                 ad.Ijarachi,
@@ -304,6 +324,7 @@ class AdvertisementViewSet(viewsets.ModelViewSet):
                 ad.position.station.name if ad.position and ad.position.station else "",
                 ad.position.station.line.name if ad.position and ad.position.station and ad.position.station.line else "",
                 ad.contact_number,
+                ad.user.username if ad.user else "",
                 ad.created_at.strftime("%Y-%m-%d %H:%M:%S") if ad.created_at else "",
             ]
             ws.append(row)
@@ -325,7 +346,7 @@ class AdvertisementArchiveViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = AdvertisementArchiveSerializer
     permission_classes = [AuthenticatedCRUDPermission]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
-    search_fields = ['Reklama_nomi',]
+    search_fields = ['Reklama_nomi','station__name']
     ordering_fields = ['created_at', 'Qurilma_narxi']
     filterset_fields = ['line','station', 'position']
     pagination_class = CustomPagination
@@ -339,16 +360,15 @@ class AdvertisementArchiveViewSet(viewsets.ReadOnlyModelViewSet):
         ws.title = "Advertisement Archives"
 
         headers = [
-            "ID", "Original Ad ID", "Reklama nomi", "Qurilma turi", "Ijarachi",
+            "Original Ad ID", "Reklama nomi", "Qurilma turi", "Ijarachi",
             "Shartnoma raqami", "Shartnoma boshlanishi", "Shartnoma tugashi",
             "O'lchov birligi", "Qurilma narxi", "Egallagan maydon", "Shartnoma summasi",
-            "Position", "Station", "Line", "User", "Created at"
+            "Position", "Station", "Line", "User", "Created at", "Created by"
         ]
         ws.append(headers)
 
         for ad in queryset:
             row = [
-                ad.id,
                 ad.original_ad.id if ad.original_ad else "",
                 ad.Reklama_nomi,
                 ad.Qurilma_turi,
@@ -385,7 +405,7 @@ class ExpiredAdvertisementViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = AdvertisementSerializer
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter, DjangoFilterBackend]
-    search_fields = ['Reklama_nomi']
+    search_fields = ['Reklama_nomi','position__station__name']
     ordering_fields = ['Shartnoma_tugashi', 'Shartnoma_muddati_boshlanishi']
     pagination_class = CustomPagination
 
@@ -416,54 +436,70 @@ class ExpiredAdvertisementViewSet(viewsets.ReadOnlyModelViewSet):
             }
         })
 
-    @action(detail=False, methods=['get'], url_path='export-excel')
-    def export_excel(self, request):
+    @action(detail=False, methods=['get'], url_path='export-expired-excel')
+    def export_expired_excel(self, request):
+        today = date.today()
+        expired = Advertisement.objects.filter(Shartnoma_tugashi__lt=today)
+
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Tugagan"
+
+        headers = [
+            "Reklama nomi", "Qurilma turi", "Ijarachi",
+            "Shartnoma raqami", "Shartnoma boshlanishi", "Shartnoma tugashi",
+            "Position", "Station", "Status", "Created by"
+        ]
+        ws.append(headers)
+
+        for ad in expired:
+            ws.append([
+                ad.Reklama_nomi,
+                ad.Qurilma_turi,
+                ad.Ijarachi,
+                ad.Shartnoma_raqami,
+                ad.Shartnoma_muddati_boshlanishi.strftime("%Y-%m-%d") if ad.Shartnoma_muddati_boshlanishi else "",
+                ad.Shartnoma_tugashi.strftime("%Y-%m-%d") if ad.Shartnoma_tugashi else "",
+                ad.position.number if ad.position else "",
+                ad.position.station.name if ad.position and ad.position.station else "",
+                ad.user.username if ad.user else ""
+                "tugagan"
+            ])
+
+        ws.append([])
+        ws.append(["Umumiy tugagan soni:", expired.count()])
+
+        response = HttpResponse(
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        response["Content-Disposition"] = "attachment; filename=expired_only.xlsx"
+        wb.save(response)
+        return response
+
+    # ======================
+    # Haftada tugaydiganlarni export qilish
+    # ======================
+    @action(detail=False, methods=['get'], url_path='export-week-excel')
+    def export_week_excel(self, request):
         today = date.today()
         seven_days_later = today + timedelta(days=7)
-
-        expired = Advertisement.objects.filter(Shartnoma_tugashi__lt=today)
         expiring_soon = Advertisement.objects.filter(
             Shartnoma_tugashi__range=(today, seven_days_later)
         )
 
         wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Haftada_tugaydigan"
 
-        # --- Tugagan sheet ---
-        ws1 = wb.active
-        ws1.title = "Tugagan"
         headers = [
-            "ID", "Reklama nomi", "Qurilma turi", "Ijarachi",
+            "Reklama nomi", "Qurilma turi", "Ijarachi",
             "Shartnoma raqami", "Shartnoma boshlanishi", "Shartnoma tugashi",
-            "Position", "Station", "Status"
+            "Position", "Station", "Status" ,"Created by"
         ]
-        ws1.append(headers)
-
-        for ad in expired:
-            row = [
-                ad.id,
-                ad.Reklama_nomi,
-                ad.Qurilma_turi,
-                ad.Ijarachi,
-                ad.Shartnoma_raqami,
-                ad.Shartnoma_muddati_boshlanishi.strftime("%Y-%m-%d") if ad.Shartnoma_muddati_boshlanishi else "",
-                ad.Shartnoma_tugashi.strftime("%Y-%m-%d") if ad.Shartnoma_tugashi else "",
-                ad.position.number if ad.position else "",
-                ad.position.station.name if ad.position and ad.position.station else "",
-                "tugagan"
-            ]
-            ws1.append(row)
-
-        # Oxirida count yozamiz
-        ws1.append([])
-        ws1.append(["Umumiy tugagan soni:", expired.count()])
-
-        # --- 7 kunda tugaydigan sheet ---
-        ws2 = wb.create_sheet(title="Haftada_tugaydigan")
-        ws2.append(headers)
+        ws.append(headers)
 
         for ad in expiring_soon:
-            row = [
-                ad.id,
+            ws.append([
                 ad.Reklama_nomi,
                 ad.Qurilma_turi,
                 ad.Ijarachi,
@@ -472,22 +508,87 @@ class ExpiredAdvertisementViewSet(viewsets.ReadOnlyModelViewSet):
                 ad.Shartnoma_tugashi.strftime("%Y-%m-%d") if ad.Shartnoma_tugashi else "",
                 ad.position.number if ad.position else "",
                 ad.position.station.name if ad.position and ad.position.station else "",
+                ad.user.username if ad.user else ""
                 "haftada_tugaydigan"
-            ]
-            ws2.append(row)
+            ])
 
-        ws2.append([])
-        ws2.append(["Umumiy haftada tugaydigan soni:", expiring_soon.count()])
-
-        # --- 3-chi sheet: statistikalar ---
-        ws3 = wb.create_sheet(title="Statistika")
-        ws3.append(["Tugagan", expired.count()])
-        ws3.append(["Haftada tugaydigan", expiring_soon.count()])
-        ws3.append(["Umumiy", Advertisement.objects.count()])
+        ws.append([])
+        ws.append(["Umumiy haftada tugaydigan soni:", expiring_soon.count()])
 
         response = HttpResponse(
             content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
-        response["Content-Disposition"] = "attachment; filename=expired_advertisements.xlsx"
+        response["Content-Disposition"] = "attachment; filename=expiring_week.xlsx"
+        wb.save(response)
+        return response
+    
+
+
+class AllAdvertisementsViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Advertisement.objects.select_related("position__station__line", "user").all()
+    serializer_class = AdvertisementSerializer
+    permission_classes = [permissions.IsAuthenticated]   
+    filter_backends = [filters.SearchFilter, DjangoFilterBackend]
+    
+    # 3 ta qidiruv ustunlari
+    search_fields = ["Ijarachi", "Shartnoma_raqami", "Qurilma_turi", "Reklama_nomi", "position__station__name"]
+    filterset_fields = ["Ijarachi", "Shartnoma_raqami", "Qurilma_turi"]
+
+    pagination_class = CustomPagination
+
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(name="search", description="Qidiruv uchun matn", required=False, type=str),
+            OpenApiParameter(name="Ijarachi", description="Ijarachi bo‘yicha filter", required=False, type=str),
+            OpenApiParameter(name="Shartnoma_raqami", description="Shartnoma raqami bo‘yicha filter", required=False, type=str),
+        ],
+        responses={200: 'Excel fayl'}
+    )
+    @action(detail=False, methods=['get'], url_path='export-excel')
+    def export_excel(self, request):
+        queryset = self.filter_queryset(self.get_queryset())
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Search Advertisements"
+
+        headers = [
+            "Reklama nomi", "Qurilma turi", "Ijarachi",
+            "Shartnoma raqami", "Shartnoma boshlanishi", "Shartnoma tugashi",
+            "O'lchov birligi", "Qurilma narxi", "Egallagan maydon", "Shartnoma summasi",
+            "Position", "Station", "Line", "Contact number", "Created at", "Created by"
+        ]
+        ws.append(headers)
+
+        for ad in queryset:
+            ws.append([
+                ad.Reklama_nomi,
+                ad.Qurilma_turi,
+                ad.Ijarachi,
+                ad.Shartnoma_raqami,
+                ad.Shartnoma_muddati_boshlanishi.strftime("%Y-%m-%d") if ad.Shartnoma_muddati_boshlanishi else "",
+                ad.Shartnoma_tugashi.strftime("%Y-%m-%d") if ad.Shartnoma_tugashi else "",
+                ad.O_lchov_birligi,
+                float(ad.Qurilma_narxi) if ad.Qurilma_narxi else 0,
+                ad.Egallagan_maydon,
+                float(ad.Shartnoma_summasi) if ad.Shartnoma_summasi else 0,
+                ad.position.number if ad.position else "",
+                ad.position.station.name if ad.position and ad.position.station else "",
+                ad.position.station.line.name if ad.position and ad.position.station and ad.position.station.line else "",
+                ad.contact_number,
+                ad.created_at.strftime("%Y-%m-%d %H:%M:%S") if ad.created_at else "",
+                ad.user.username if ad.user else "",
+            ])
+
+        # ustun kengligi
+        for i, column in enumerate(ws.columns, start=1):
+            max_length = max((len(str(cell.value)) for cell in column if cell.value), default=0)
+            ws.column_dimensions[get_column_letter(i)].width = max_length + 2
+
+        response = HttpResponse(
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        )
+        response['Content-Disposition'] = 'attachment; filename=search_advertisements.xlsx'
         wb.save(response)
         return response

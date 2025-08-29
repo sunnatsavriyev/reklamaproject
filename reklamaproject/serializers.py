@@ -23,6 +23,7 @@ class StationSerializer(serializers.ModelSerializer):
 class AdvertisementSerializer(serializers.ModelSerializer):
     station = serializers.CharField(source='position.station.name', read_only=True)
     position_number = serializers.IntegerField(source='position.number', read_only=True)
+    created_by = serializers.CharField(source="user.username", read_only=True) 
 
     # Reklama ko'rishda barcha pozitsiyalar bo'lishi mumkin
     position = serializers.PrimaryKeyRelatedField(queryset=Position.objects.all())
@@ -38,7 +39,8 @@ class AdvertisementSerializer(serializers.ModelSerializer):
             'Shartnoma_muddati_boshlanishi', 'Shartnoma_tugashi',
             'O_lchov_birligi', 
             'Qurilma_narxi', 'Egallagan_maydon', 'Shartnoma_summasi',
-            'Shartnoma_fayl', 'photo', 'contact_number', 'created_at'
+            'Shartnoma_fayl', 'photo', 'contact_number', 'created_at',
+            'created_by',
         ]
         read_only_fields = ['user']
 
@@ -81,13 +83,6 @@ class CreateAdvertisementSerializer(AdvertisementSerializer):
             raise serializers.ValidationError({
                 'position': "Joy tanlanishi shart."
             })
-
-        if not self.instance:
-            shartnoma_raqami = attrs.get('Shartnoma_raqami')
-            if shartnoma_raqami and Advertisement.objects.filter(Shartnoma_raqami=shartnoma_raqami).exists():
-                raise serializers.ValidationError({
-                    'Shartnoma_raqami': 'Bu shartnoma raqami allaqachon mavjud.'
-                })
         return attrs
 
     def update(self, instance, validated_data):
@@ -106,21 +101,27 @@ class PositionSerializer(serializers.ModelSerializer):
     )
     advertisement = AdvertisementSerializer(read_only=True)
     status = serializers.SerializerMethodField()
+    created_by = serializers.CharField(source="created_by.username", read_only=True)
+    created_at = serializers.DateTimeField(read_only=True)
 
     class Meta:
         model = Position
-        fields = ['id', 'station', 'station_id', 'number', 'advertisement', 'status']
+        fields = [
+            'id', 'station', 'station_id', 'number',
+            'advertisement', 'status',
+            'created_at', 'created_by'
+        ]
 
     def get_status(self, obj):
         return getattr(obj, "advertisement", None) is not None
 
     def update(self, instance, validated_data):
+        # update paytida station o‘zgarmasligi kerak
         validated_data.pop("station", None)
         return super().update(instance, validated_data)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Agar update bo'lsa -> station_id ni olib tashlaymiz
         request = self.context.get("request")
         if request and request.method in ("PUT", "PATCH"):
             self.fields.pop("station_id", None)
@@ -132,6 +133,7 @@ class AdvertisementArchiveSerializer(serializers.ModelSerializer):
     user = serializers.CharField(source='user.username', read_only=True)
     line_name = serializers.CharField(source='line.name', read_only=True)
     station_name = serializers.CharField(source='station.name', read_only=True)
+    created_by = serializers.CharField(source="user.username", read_only=True)
     class Meta:
         model = AdvertisementArchive
         fields = '__all__'

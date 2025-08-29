@@ -33,6 +33,8 @@ class Station(models.Model):
 class Position(models.Model):
     station = models.ForeignKey(Station, on_delete=models.SET_NULL,null=True, related_name='positions')
     number = models.PositiveIntegerField(help_text="Joy raqami, masalan: 1, 2, 3")
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
     def __str__(self):
         return f"{self.station.name} - Joy #{self.number}" if self.station else f"Joy #{self.number}"
 

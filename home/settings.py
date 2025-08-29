@@ -145,7 +145,7 @@ REST_FRAMEWORK = {
         'rest_framework.renderers.BrowsableAPIRenderer',
     ),
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
-    "PAGE_SIZE": 20, 
+    "PAGE_SIZE": 50, 
 } 
 
 SIMPLE_JWT = {
@@ -209,7 +209,7 @@ JAZZMIN_UI_TWEAKS = {
 
 # --- Swagger ---
 SPECTACULAR_SETTINGS = {
-    'TITLE': 'DRF tarmoq',
-    'DESCRIPTION': 'Drf reklama',
+    'TITLE': 'DRF marketing',
+    'DESCRIPTION': 'Drf reklamalar marketing',
     'VERSION': '1.0.0',
 }
