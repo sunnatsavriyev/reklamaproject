@@ -106,21 +106,17 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'home.wsgi.application'
 
-# DATABASES = {
-#     'default': dj_database_url.config(
-#         default=os.environ.get("DATABASE_URL")
-#     )
-# }
+
 
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": "reklamaproject",
-        "USER": "postgres",
-        "PASSWORD": "sunnat1123",
-        "HOST": "localhost",
-        "PORT": "5433",
+        "ENGINE": os.environ.get("DB_ENGINE", "django.db.backends.postgresql"),
+        "NAME": os.environ.get("DB_NAME", "reklama_db_jt3q"),
+        "USER": os.environ.get("DB_USER", "reklama_db_jt3q_user"),
+        "PASSWORD": os.environ.get("DB_PASSWORD", "F7gkeQKmDWXBbFvFTzLaS2i4yKIPppcy"),
+        "HOST": os.environ.get("DB_HOST", "dpg-d35vi9umcj7s73aa03i0-a"),
+        "PORT": os.environ.get("DB_PORT", "5432"),
     }
 }
 
