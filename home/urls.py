@@ -3,10 +3,15 @@ from django.urls import path, include
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from django.conf import settings
+from django.http import JsonResponse
 from django.conf.urls.static import static
 
+
+def root_view(request):
+    return JsonResponse({"detail": "Metro API ishlayapti 🚇"})
 urlpatterns = [
     # admin
+    path("", root_view),
     path('secret_admin/', admin.site.urls),
 
     # api
