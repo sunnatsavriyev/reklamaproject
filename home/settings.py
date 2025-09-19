@@ -74,6 +74,7 @@ CORS_ALLOWED_ORIGINS = env.list("CORS_ALLOWED_ORIGINS", default=[
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     "https://marketing-five-rose.vercel.app",
+    "https://reklamaproject.onrender.com"
     "https://2abfcea964d1.ngrok-free.app",
 ])
 CORS_ALLOW_CREDENTIALS = True
@@ -83,6 +84,7 @@ CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[
     "http://127.0.0.1:5173",
     "http://192.168.0.28:5173",
     "https://marketing-five-rose.vercel.app",
+    "https://reklamaproject.onrender.com"
     "https://2abfcea964d1.ngrok-free.app",
 ])
 
